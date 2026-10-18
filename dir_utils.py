@@ -300,6 +300,50 @@ def extract_file_from_zip(zip_path: str | Path, file_name: str) -> bytes:
         raise
 
 
+def list_files_in_zip(zip_path: str | Path, directory: str) -> list[Path]:
+    """
+    Retrieves a list of files from a directory inside a zip archive.
+
+    Args:
+        zip_path (str | Path): Path to the zip archive.
+        directory (str): Directory inside the archive to search.
+
+    Returns:
+        list[Path]: A list of file paths found inside the archive directory.
+
+    Raises:
+        FileNotFoundError:
+            If the archive does not exist or the directory is not found
+            within the archive.
+        zipfile.BadZipFile:
+            If the archive is not a valid zip file.
+    """
+    try:
+        zip_path = Path(zip_path)
+
+        if not zip_path.is_file():
+            raise FileNotFoundError(f"Zip archive does not exist: {zip_path}")
+
+        directory = directory.replace("\\", "/").rstrip("/") + "/"
+
+        logger.debug("Listing files from %s under %s", zip_path, directory)
+        with zipfile.ZipFile(zip_path) as z:
+            names = z.namelist()
+
+            if not any(name.startswith(directory) for name in names):
+                raise FileNotFoundError(f'Directory not found in archive: "{directory}"')
+
+            files = [Path(name) for name in names if name.startswith(directory) and not name.endswith("/")]
+
+        logger.debug("Found %s files under %s in archive %s", len(files), directory, zip_path)
+
+        return files
+
+    except Exception:
+        logger.exception("Failed to list files from archive %s under %s", zip_path, directory)
+        raise
+
+
 def get_windows_details(file_path: str | Path, max_columns: int = 512) -> dict[str, str]:
     """
     Returns Windows 'Details' tab properties using the Shell Property System (Windows-only).
