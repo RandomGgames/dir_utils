@@ -13,9 +13,8 @@ logger = logging.getLogger(__name__)
 
 try:
     import send2trash
-except ModuleNotFoundError as e:
-    print(f"[ERROR] Missing dependency: {e}")
-    input("\nPress Enter to exit...")
+except ImportError:
+    send2trash = None
 
 try:
     import win32com.client
@@ -35,7 +34,7 @@ def ensure_dir(path: str | Path) -> Path:
         The resolved Path object of the directory.
     """
     path = Path(path).resolve()
-    target_dir = path.parent if (path.suffix or path.is_file()) else path
+    target_dir = path.parent if (path.is_file() or (not path.exists() and path.suffix)) else path
 
     try:
         if not target_dir.exists():
@@ -59,6 +58,8 @@ def send_to_recycle_bin(path: str | Path) -> None:
         raise FileNotFoundError(f"Path does not exist: \"{path}\"")
 
     try:
+        if send2trash is None:
+            raise ModuleNotFoundError("send_to_recycle_bin requires the send2trash package.")
         send2trash.send2trash(str(path))
         logger.info("Sent \"%s\" to recycle bin.", path)
 
@@ -95,8 +96,8 @@ def get_file_data(file_path: str | Path) -> tuple[int, int, int]:
         file_path (str or Path): The path to the file whose statistics are to be retrieved.
 
     Returns:
-        tuple[int, int, int]: A tuple containing the modified time, created time, and size of the specified file.
-            Note that not all operating systems support creation times, so these values may be None.
+        tuple[int, int, int]: Modified time in nanoseconds, creation time when available (otherwise the platform's
+            change time) in nanoseconds, and size in bytes.
 
     Raises:
         OSError: If an error occurs while retrieving the file data.
@@ -208,7 +209,6 @@ def get_files_list(root: str | Path, recursive: bool = False) -> list[Path]:
 
     Raises:
         NotADirectoryError: Raised if the provided path does not exist or is not a directory.
-        FileNotFoundError: Raised if no files are found in the specified directory and subdirectories.
     """
     root = Path(root)
 
@@ -251,8 +251,8 @@ def generate_hash(file_path: str | Path, algorithm: str = "sha256") -> str:
         # Determine the appropriate hashing function based on Python version
         if hasattr(hashlib, 'file_digest'):
             try:
-                digest = hashlib.file_digest(file_path.open("rb"), algorithm)
-                hexd = digest.hexdigest()
+                with file_path.open("rb") as file:
+                    hexd = hashlib.file_digest(file, algorithm).hexdigest()
             except ValueError as e:
                 raise ValueError(f"Invalid hash algorithm: {e}") from e
         else:
