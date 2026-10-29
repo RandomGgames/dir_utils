@@ -5,6 +5,7 @@ Functions for working with directories, zips, and files.
 from pathlib import Path
 import hashlib
 import logging
+import os
 import platform
 import tempfile
 import zipfile
@@ -216,8 +217,18 @@ def get_files_list(root: str | Path, recursive: bool = False) -> list[Path]:
         raise NotADirectoryError(f"Expected a directory, got: {root}")
 
     try:
-        iterator = root.rglob("*") if recursive else root.glob("*")
-        files = [p for p in iterator if p.is_file()]
+        files = []
+        directories = [root]
+
+        while directories:
+            current_dir = directories.pop()
+            with os.scandir(current_dir) as entries:
+                for entry in entries:
+                    if recursive and entry.is_dir(follow_symlinks=False):
+                        directories.append(Path(entry.path))
+                    elif entry.is_file():
+                        files.append(Path(entry.path))
+
         logger.debug("Found %s files in %s (recursive=%s)", len(files), root, recursive)
         return files
 
