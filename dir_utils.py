@@ -237,6 +237,35 @@ def get_files_list(root: str | Path, recursive: bool = False) -> list[Path]:
         raise
 
 
+def get_file_count(path: str | Path, extensions: list[str] | None = None, recursive: bool = False) -> int:
+    """Count files, optionally filtering suffixes case-insensitively and visiting subfolders.
+
+    Extensions may include or omit the leading dot. None counts all files;
+    an empty list counts none. Directory symlinks are not traversed.
+    Invalid directories raise NotADirectoryError; scan errors propagate.
+    """
+    path = Path(path)
+    if not path.is_dir():
+        raise NotADirectoryError(f"Expected a directory, got: {path}")
+
+    normalized_extensions = None if extensions is None else {f".{extension.lstrip('.').casefold()}" for extension in extensions}
+    file_count = 0
+    directories = [path]
+    try:
+        while directories:
+            current_dir = directories.pop()
+            with os.scandir(current_dir) as entries:
+                for entry in entries:
+                    if recursive and entry.is_dir(follow_symlinks=False):
+                        directories.append(Path(entry.path))
+                    elif entry.is_file() and (normalized_extensions is None or Path(entry.name).suffix.casefold() in normalized_extensions):
+                        file_count += 1
+        return file_count
+    except OSError:
+        logger.exception("Failed to count files in %s", path)
+        raise
+
+
 def generate_hash(file_path: str | Path, algorithm: str = "sha256") -> str:
     """
     Generates a hexadecimal hash for a file using optimal performance methods.

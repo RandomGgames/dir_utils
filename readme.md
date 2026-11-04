@@ -38,6 +38,7 @@ digest = generate_hash("archive.zip")
 - `get_file_data(path)` returns `(modified_time_ns, creation_or_change_time_ns, size_bytes)`. The second value is the platform's creation time where available; otherwise it is the platform's change time.
 - `zip_files(files, zip_path, compresslevel=6, error_on_missing=False, overwrite=True)` creates or replaces a ZIP archive. Missing inputs are skipped by default; set `error_on_missing=True` to raise an error. Files are stored by basename, and directory contents are stored under the directory's basename.
 - `get_files_list(root, recursive=False)` returns file paths from a directory. An empty directory returns an empty list.
+- `get_file_count(path, extensions=None, recursive=False)` counts files directly in a directory, optionally including subfolders. For example, `get_file_count("images", extensions=["jpg", ".PNG"], recursive=True)` counts JPG and PNG files case-insensitively. Omit extensions to count all files; an empty list counts none. Directory symlinks are not traversed. Invalid directories raise `NotADirectoryError`, and scan errors propagate.
 - `generate_hash(file_path, algorithm="sha256")` returns a file's hexadecimal digest.
 - `extract_file_from_zip(zip_path, file_name)` returns the named archive member's contents as bytes.
 - `list_files_in_zip(zip_path, directory)` returns `Path` objects for files under the named archive directory.
